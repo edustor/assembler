@@ -12,10 +12,12 @@ import org.springframework.amqp.rabbit.core.RabbitTemplate
 import org.springframework.stereotype.Component
 import ru.edustor.assembler.exception.PageFileNotFoundException
 import ru.edustor.commons.models.rabbit.processing.documents.DocumentAssembleRequest
+import ru.edustor.commons.models.rabbit.processing.documents.DocumentAssembledEvent
 import ru.edustor.commons.storage.service.BinaryObjectStorageService
 import ru.edustor.commons.storage.service.BinaryObjectStorageService.ObjectType.ASSEMBLED_DOCUMENT
 import ru.edustor.commons.storage.service.BinaryObjectStorageService.ObjectType.PAGE
 import java.io.ByteArrayOutputStream
+import java.time.Instant
 
 @Component
 open class RabbitHandler(var storage: BinaryObjectStorageService,
@@ -32,7 +34,7 @@ open class RabbitHandler(var storage: BinaryObjectStorageService,
             key = "requested.assemble.documents.processing"
     )))
     fun processRequest(request: DocumentAssembleRequest) {
-        logger.info("Assembling document ${request.documentId}")
+        logger.info("Assembling document ${request.documentId} for request ${request.requestId}")
 
         if (request.pages.isEmpty()) {
             storage.delete(ASSEMBLED_DOCUMENT, request.documentId)
@@ -48,13 +50,23 @@ open class RabbitHandler(var storage: BinaryObjectStorageService,
                 PdfDocument(PdfReader(pageInputStream)).use { pageDocument ->
                     merger.merge(pageDocument, 1, 1)
                 }
-            } ?: throw PageFileNotFoundException("Failed to find ${page.fileId} file used by ${request.documentId} document")
-            logger.info("Document ${request.documentId}: processed page file ${page.fileId}")
+            } ?: throw PageFileNotFoundException("Failed to find ${page.fileId} file " +
+                    "used by ${request.documentId} document (request ${request.requestId})")
+            logger.info("Request ${request.requestId}: processed page file ${page.fileId}")
         }
 
         result.close()
         val resultBytes = outputStream.toByteArray()
         storage.put(ASSEMBLED_DOCUMENT, request.documentId, resultBytes.inputStream(), resultBytes.size.toLong())
+
+        val assembledEvent = DocumentAssembledEvent(requestId = request.requestId, documentId = request.documentId,
+                timestamp = Instant.now(), succeed = true)
+
+        rabbitTemplate.convertAndSend(
+                "internal.edustor",
+                "finished.assemble.documents.processing",
+                assembledEvent
+        )
 
         logger.info("File processing finished: ${request.documentId}")
     }
