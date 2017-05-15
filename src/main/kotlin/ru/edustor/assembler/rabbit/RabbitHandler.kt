@@ -52,7 +52,7 @@ open class RabbitHandler(var storage: BinaryObjectStorageService,
                 }
             } ?: throw PageFileNotFoundException("Failed to find ${page.fileId} file " +
                     "used by ${request.documentId} document (request ${request.requestId})")
-            logger.info("Request ${request.requestId}: [$i/${request.pages.size}] processed page file ${page.fileId}")
+            logger.info("[${i + 1}/${request.pages.size}] processed page file ${page.fileId} for request ${request.requestId}:")
         }
 
         result.close()
