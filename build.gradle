@@ -1,7 +1,3 @@
-import org.ajoberstar.grgit.Grgit
-
-import java.time.Instant
-
 buildscript {
     ext.kotlin_version = '1.1.2-2'
     ext.spring_boot_version = '1.5.3.RELEASE'
@@ -12,7 +8,6 @@ buildscript {
     dependencies {
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
         classpath "org.springframework.boot:spring-boot-gradle-plugin:$spring_boot_version"
-        classpath 'org.ajoberstar:gradle-git:1.6.0'
     }
 }
 
@@ -35,27 +30,6 @@ jar {
     destinationDir = new File(buildDir, "/dist")
     archiveName = "edustor-assembler.jar"
 }
-
-ext {
-//    def grgit = Grgit.open()
-//    shortCommitId = grgit.head().getAbbreviatedId()
-//    commitId = grgit.head().id
-}
-
-task createProperties(dependsOn: processResources) {
-    doLast {
-        new File("$buildDir/resources/main/build.properties").withWriter { w ->
-            def p = new Properties()
-            p['edustor.build.name'] = "Edustor Recognition"
-//            p['edustor.build.version'] = "${project.version}-$shortCommitId".toString()
-            p['edustor.build.date'] = Instant.now().epochSecond.toString()
-//            p['edustor.build.commitId'] = commitId
-            p['edustor.build.repo'] = "https://github.com/edustor/assembler"
-            p.store(w, null)
-        }
-    }
-}
-processResources.finalizedBy createProperties
 
 dependencies {
     compile "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
