@@ -1,0 +1,6 @@
+rootProject.name = 'documents-assembler'
+
+include ':edustor-commons:version'
+include ':edustor-commons:storage'
+include ':edustor-commons:rabbit'
+include ':edustor-commons:models'

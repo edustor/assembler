@@ -1,0 +1,77 @@
+version: 2
+jobs:
+  build:
+    working_directory: ~/edustor-assembler
+    docker:
+      - image: openjdk:8-jdk
+    environment:
+      TERM: dumb
+    steps:
+      - checkout
+      - run: git submodule sync && git submodule update --init
+      - restore_cache:
+          key: edustor-assembler-gradle-{{ checksum "build.gradle" }}
+      - run: apt-get update && apt-get install libgs-dev zbar-tools -y
+      - run: |
+          ./gradlew build
+          rm build/dist/*.original
+      - save_cache:
+          key: edustor-assembler-gradle-{{ checksum "build.gradle" }}
+          paths:
+            - ~/.gradle
+      - save_cache:
+          key: edustor-assembler-{{ .Revision }}
+          paths:
+            - ~/edustor-assembler/build/dist
+            - /var/cache/apt/archives
+      - store_artifacts:
+          path: ~/edustor-assembler/build/dist
+          destination: edustor-assembler
+      - run:
+          name: Trigger deploy
+          command: |
+                if [ "${CIRCLE_BRANCH}" == "master" ]; then
+                  curl -u ${CIRCLE_API_TOKEN}: \
+                    -d build_parameters[CIRCLE_JOB]=deploy_swarm \
+                    https://circleci.com/api/v1.1/project/github/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME/tree/$CIRCLE_BRANCH
+                fi
+  deploy_swarm:
+    branches:
+      only:
+        - master
+    working_directory: ~/edustor-assembler
+    docker:
+      - image: docker:git
+    environment:
+      TERM: dumb
+      IMAGE_NAME: quay.io/edustor/assembler
+      SWARM_CA_URL: https://wutiarn.keybase.pub/swarm/ca.pem
+      SWARM_CERT_URL: https://wutiarn.keybase.pub/swarm/cert.pem
+      DOCKER_HOST: swarm.wutiarn.ru:2376
+      DOCKER_TLS_VERIFY: 1
+      DOCKER_CERT_PATH: /root/.docker
+    steps:
+      - checkout
+      - restore_cache:
+          key: edustor-assembler-{{ .Revision }}
+      - run:
+          name: Setup remote docker
+          command: |
+            mkdir -p /root/.docker
+            curl -sSL $SWARM_CA_URL > /root/.docker/ca.pem
+            curl -sSL $SWARM_CERT_URL > /root/.docker/cert.pem
+            echo ${SWARM_KEY} | base64 -d > /root/.docker/key.pem
+      - run:
+          name: Build docker image
+          command: |
+            docker login -u="edustor+ci" -p="$REGISTRY_PASSWORD" quay.io
+            docker build -t $IMAGE_NAME:ci-$CIRCLE_BUILD_NUM -f ci.Dockerfile . | cat
+            docker tag $IMAGE_NAME:ci-$CIRCLE_BUILD_NUM $IMAGE_NAME:latest
+      - run:
+          name: Push docker image
+          command: |
+            docker push $IMAGE_NAME:latest | cat
+            docker push $IMAGE_NAME:ci-$CIRCLE_BUILD_NUM | cat
+      - run:
+          name: Deploy to swarm
+          command: docker service update --with-registry-auth --image $IMAGE_NAME:ci-$CIRCLE_BUILD_NUM sw0_edustor-assembler

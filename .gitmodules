@@ -1,0 +1,3 @@
+[submodule "edustor-commons"]
+	path = edustor-commons
+	url = git@github.com:edustor/commons.git
