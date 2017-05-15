@@ -45,14 +45,14 @@ open class RabbitHandler(var storage: BinaryObjectStorageService,
         val result = PdfDocument(PdfWriter(outputStream))
         val merger = PdfMerger(result)
 
-        request.pages.forEach { page ->
+        request.pages.forEachIndexed { i, page ->
             storage.get(PAGE, page.fileId)?.use { pageInputStream ->
                 PdfDocument(PdfReader(pageInputStream)).use { pageDocument ->
                     merger.merge(pageDocument, 1, 1)
                 }
             } ?: throw PageFileNotFoundException("Failed to find ${page.fileId} file " +
                     "used by ${request.documentId} document (request ${request.requestId})")
-            logger.info("Request ${request.requestId}: processed page file ${page.fileId}")
+            logger.info("Request ${request.requestId}: [$i/${request.pages.size}] processed page file ${page.fileId}")
         }
 
         result.close()
