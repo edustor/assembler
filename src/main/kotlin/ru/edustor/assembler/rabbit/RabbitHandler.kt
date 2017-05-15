@@ -68,6 +68,6 @@ open class RabbitHandler(var storage: BinaryObjectStorageService,
                 assembledEvent
         )
 
-        logger.info("File processing finished: ${request.documentId}")
+        logger.info("Document assembled: ${request.documentId}")
     }
 }
