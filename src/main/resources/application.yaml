@@ -1,0 +1,11 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/edustor_assembler
+    username: postgres
+  jpa:
+    hibernate:
+      ddl-auto: update
+    database: postgresql
+flyway:
+  validate-on-migrate: false
+  baseline-on-migrate: true

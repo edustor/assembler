@@ -38,11 +38,12 @@ jar {
 dependencies {
     compile "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
     compile 'com.itextpdf:kernel:7.0.1'
-    compile 'commons-codec:commons-codec:1.10'
+    compile 'org.postgresql:postgresql:42.1.1'
 
     compile "org.springframework.boot:spring-boot-autoconfigure"
     compile "org.springframework.boot:spring-boot-starter-logging"
     compile "org.springframework.boot:spring-boot-starter-amqp"
+    compile "org.springframework.boot:spring-boot-starter-data-jpa"
 
     compile project(':edustor-commons:storage')
     compile project(':edustor-commons:rabbit')

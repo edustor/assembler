@@ -11,6 +11,8 @@ import org.springframework.amqp.rabbit.annotation.*
 import org.springframework.amqp.rabbit.core.RabbitTemplate
 import org.springframework.stereotype.Component
 import ru.edustor.assembler.exception.PageFileNotFoundException
+import ru.edustor.assembler.repository.DocumentStatusRepository
+import ru.edustor.assembler.repository.getForAccountId
 import ru.edustor.commons.models.rabbit.processing.documents.DocumentAssembleRequest
 import ru.edustor.commons.models.rabbit.processing.documents.DocumentAssembledEvent
 import ru.edustor.commons.storage.service.BinaryObjectStorageService
@@ -21,7 +23,8 @@ import java.time.Instant
 
 @Component
 open class RabbitHandler(var storage: BinaryObjectStorageService,
-                         val rabbitTemplate: RabbitTemplate) {
+                         val rabbitTemplate: RabbitTemplate,
+                         val documentStatusRepository: DocumentStatusRepository) {
     val logger: Logger = LoggerFactory.getLogger(RabbitHandler::class.java)
 
     @RabbitListener(bindings = arrayOf(QueueBinding(
@@ -35,6 +38,15 @@ open class RabbitHandler(var storage: BinaryObjectStorageService,
     )))
     fun processRequest(request: DocumentAssembleRequest) {
         logger.info("Assembling document ${request.documentId} for request ${request.requestId}")
+
+        val documentStatus = documentStatusRepository.getForAccountId(request.documentId)
+
+        if (documentStatus.lastAssembleRequestTimestamp != null && documentStatus.lastAssembleRequestTimestamp!! > request.timestamp) {
+            logger.info("Document ${request.documentId} was already assembled by newer request")
+        }
+
+        documentStatus.lastAssembleRequestTimestamp = request.timestamp
+        documentStatusRepository.save(documentStatus)
 
         if (request.pages.isEmpty()) {
             storage.delete(ASSEMBLED_DOCUMENT, request.documentId)
