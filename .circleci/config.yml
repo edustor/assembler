@@ -56,6 +56,7 @@ jobs:
       - run:
           name: Setup remote docker
           command: |
+            apk add --no-cache curl
             mkdir -p /root/.docker
             curl -sSL $SWARM_CA_URL > /root/.docker/ca.pem
             curl -sSL $SWARM_CERT_URL > /root/.docker/cert.pem
